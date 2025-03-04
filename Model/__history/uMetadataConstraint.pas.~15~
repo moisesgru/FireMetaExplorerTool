@@ -1,0 +1,78 @@
+unit uMetadataConstraint;
+
+interface
+
+uses
+  MVCFramework.ActiveRecord, System.SysUtils, System.JSON, FireDAC.Comp.Client;
+
+type
+  TMetadataConstraint = class
+  public
+    function GetConstraintsJSON(const table_name: string): TJSONArray;
+  end;
+
+implementation
+
+function TMetadataConstraint.GetConstraintsJSON(const table_name: string): TJSONArray;
+var
+  FDQuery: TFDQuery;
+  ConstraintsArray: TJSONArray;
+  ConstraintObject: TJSONObject;
+begin
+  ConstraintsArray := TJSONArray.Create;
+  FDQuery := TFDQuery.Create(nil);
+  try
+    FDQuery.Connection := ActiveRecordConnectionsRegistry.GetCurrent;
+    FDQuery.SQL.Text :=
+    'SELECT ' +
+    '    RC.RDB$CONSTRAINT_NAME AS CONSTRAINT_NAME, ' +
+    '    TRIM(RC.RDB$CONSTRAINT_TYPE) AS CONSTRAINT_TYPE, ' +
+    '    CASE ' +
+    '        WHEN RC.RDB$CONSTRAINT_TYPE = ''FOREIGN KEY'' THEN ' +
+    '            (SELECT TRIM(RIDX.RDB$RELATION_NAME) ' +
+    '             FROM RDB$RELATION_CONSTRAINTS REF ' +
+    '             JOIN RDB$INDICES RIDX ON REF.RDB$INDEX_NAME = RIDX.RDB$INDEX_NAME ' +
+    '             WHERE REF.RDB$CONSTRAINT_NAME = RF.RDB$CONST_NAME_UQ) ' +
+    '        ELSE TRIM(RC.RDB$RELATION_NAME) ' +
+    '    END AS REFERENCED_TABLE, ' +
+    '    CASE ' +
+    '        WHEN RC.RDB$CONSTRAINT_TYPE = ''FOREIGN KEY'' THEN ' +
+    '            (SELECT TRIM(SEG.RDB$FIELD_NAME) ' +
+    '             FROM RDB$INDEX_SEGMENTS SEG ' +
+    '             JOIN RDB$INDICES IDX ON SEG.RDB$INDEX_NAME = IDX.RDB$INDEX_NAME ' +
+    '             WHERE IDX.RDB$INDEX_NAME = ( ' +
+    '                 SELECT REF.RDB$INDEX_NAME ' +
+    '                 FROM RDB$RELATION_CONSTRAINTS REF ' +
+    '                 WHERE REF.RDB$CONSTRAINT_NAME = RF.RDB$CONST_NAME_UQ ' +
+    '             ) ' +
+    '             ROWS 1) ' +
+    '        ELSE TRIM(SEG.RDB$FIELD_NAME) ' +
+    '    END AS REFERENCED_COLUMN ' +
+    'FROM RDB$RELATION_CONSTRAINTS RC ' +
+    'LEFT JOIN RDB$REF_CONSTRAINTS RF ON RC.RDB$CONSTRAINT_NAME = RF.RDB$CONSTRAINT_NAME ' +
+    'LEFT JOIN RDB$INDICES IDX ON RC.RDB$INDEX_NAME = IDX.RDB$INDEX_NAME ' +
+    'LEFT JOIN RDB$INDEX_SEGMENTS SEG ON IDX.RDB$INDEX_NAME = SEG.RDB$INDEX_NAME ' +
+    'WHERE TRIM(RC.RDB$RELATION_NAME) = ''SALES_BUDGET_DATA'' ' +
+    '  AND RC.RDB$CONSTRAINT_TYPE IN (''PRIMARY KEY'', ''FOREIGN KEY'', ''CHECK'') ' +
+    'ORDER BY RC.RDB$CONSTRAINT_TYPE, RC.RDB$CONSTRAINT_NAME;';
+    FDQuery.Params.ParamByName('TableName').AsString := UpperCase(table_name);
+    FDQuery.Open;
+
+    while not FDQuery.Eof do
+    begin
+      ConstraintObject := TJSONObject.Create;
+      ConstraintObject.AddPair('constraint_name', Trim(FDQuery.FieldByName('constraint_name').AsString));
+      ConstraintObject.AddPair('constraint_type', FDQuery.FieldByName('constraint_type').AsString);
+      ConstraintObject.AddPair('referenced_table', Trim(FDQuery.FieldByName('referenced_table').AsString));
+      ConstraintObject.AddPair('referenced_column', Trim(FDQuery.FieldByName('referenced_column').AsString));
+      ConstraintsArray.AddElement(ConstraintObject);
+      FDQuery.Next;
+    end;
+  finally
+    FDQuery.Free;
+  end;
+  Result := ConstraintsArray;
+end;
+
+end.
+

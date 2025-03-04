@@ -1,0 +1,45 @@
+unit uDebugController;
+
+interface
+
+uses
+  MVCFramework, System.JSON;
+
+type
+  [MVCPath('/debug')]
+  TDebugController = class(TMVCController)
+  public
+    [MVCPath('/routes')]
+    [MVCHTTPMethod([httpGET])]
+    procedure ListRoutes;
+  end;
+
+implementation
+
+uses
+  MVCFramework.Router;
+
+procedure TDebugController.ListRoutes;
+var
+  RoutesArray: TJSONArray;
+  Route: TMVCRouteDefinition;
+begin
+  RoutesArray := TJSONArray.Create;
+  try
+    for Route in TMVCRouter.GetInstance.Routes do
+    begin
+      RoutesArray.AddElement(
+        TJSONObject.Create
+          .AddPair('http_method', Route.HTTPMethod)
+          .AddPair('path', Route.Path)
+          .AddPair('controller', Route.ControllerClass.ClassName)
+      );
+    end;
+    Render(RoutesArray, True);
+  finally
+    RoutesArray.Free;
+  end;
+end;
+
+end.
+

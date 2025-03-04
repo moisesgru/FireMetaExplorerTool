@@ -1,0 +1,52 @@
+unit uDebugController;
+
+interface
+
+uses
+  MVCFramework, System.JSON;
+
+type
+  [MVCPath('/debug')]
+  TDebugController = class(TMVCController)
+  public
+    [MVCPath('/routes')]
+    [MVCHTTPMethod([httpGET])]
+    procedure ListRoutes;
+  end;
+
+implementation
+
+uses
+  MVCFramework.Commons, MVCFramework.Router, System.Generics.Collections;
+
+procedure TDebugController.ListRoutes;
+var
+  RoutesArray: TJSONArray;
+  RouteList: TObjectList<TMVCRoute>;
+  Route: TMVCRoute;
+begin
+  RoutesArray := TJSONArray.Create;
+  RouteList := TObjectList<TMVCRoute>.Create(False); // False para não liberar os objetos originais
+  try
+    // Obtém as rotas registradas
+    TMVCRouter.GetInstance.GetRoutes(RouteList);
+
+    for Route in RouteList do
+    begin
+      RoutesArray.AddElement(
+        TJSONObject.Create
+          .AddPair('http_method', Route.HTTPMethod)
+          .AddPair('path', Route.Path)
+          .AddPair('controller', Route.ControllerQualifiedClassName)
+      );
+    end;
+
+    Render(RoutesArray, True);
+  finally
+    RoutesArray.Free;
+    RouteList.Free;
+  end;
+end;
+
+end.
+

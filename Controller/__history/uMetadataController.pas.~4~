@@ -1,0 +1,45 @@
+unit uMetadataController;
+
+interface
+
+uses
+  MVCFramework, uModelMetadata, uMetadataService;
+
+type
+  [MVCPath('/metadata')]
+  TMetadataController = class(TMVCController)
+  private
+    FMetadataService: TMetadataService;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+
+    [MVCPath('/table/(:TableName)')]
+    [MVCHTTPMethod([GET])]
+    procedure GetTableMetadata(const TableName: string);
+  end;
+
+implementation
+
+constructor TMetadataController.Create;
+begin
+  inherited;
+  FMetadataService := TMetadataService.Create;
+end;
+
+destructor TMetadataController.Destroy;
+begin
+  FMetadataService.Free;
+  inherited;
+end;
+
+procedure TMetadataController.GetTableMetadata(const TableName: string);
+var
+  Metadata: ITableMetadata;
+begin
+  Metadata := FMetadataService.GetMetadata(TableName);
+  Render(Metadata);
+end;
+
+end.
+

@@ -1,0 +1,80 @@
+unit uMetadataView;
+
+interface
+
+uses
+  MVCFramework.ActiveRecord, System.JSON,
+  FireDAC.Comp.Client, FireDAC.Stan.Param, System.Generics.Collections;
+
+type
+  TMetadataView = class
+  public
+    class function RenderColumns(const TableName: string): TJSONArray;
+    class function RenderConstraints(const TableName: string): TJSONArray;
+    class function RenderIndexes(const TableName: string): TJSONArray;
+    class function RenderMetadata(const TableName: string): TJSONObject;
+  end;
+
+implementation
+
+uses
+uMetadataColumn, uMetadataConstraint, uMetadataIndex;
+
+
+{ TMetadataView }
+
+class function TMetadataView.RenderColumns(const TableName: string): TJSONArray;
+var
+  Columns: TObjectList<TMetadataColumn>;
+  Column: TMetadataColumn;
+begin
+  Result := TJSONArray.Create;
+  Columns := TMVCActiveRecord.Select<TMetadataColumn>('SELECT * FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = ?', [TableName]);
+  try
+    for Column in Columns do
+      Result.AddElement(Column.ToJSON);
+  finally
+    Columns.Free;
+  end;
+end;
+
+class function TMetadataView.RenderConstraints(const TableName: string): TJSONArray;
+var
+  Constraints: TObjectList<TMetadataConstraint>;
+  Constraint: TMetadataConstraint;
+begin
+  Result := TJSONArray.Create;
+  Constraints := TMVCActiveRecord.Select<TMetadataConstraint>('SELECT * FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME = ?', [TableName]);
+  try
+    for Constraint in Constraints do
+      Result.AddElement(Constraint.ToJSON);
+  finally
+    Constraints.Free;
+  end;
+end;
+
+class function TMetadataView.RenderIndexes(const TableName: string): TJSONArray;
+var
+  Indexes: TObjectList<TMetadataIndex>;
+  Index: TMetadataIndex;
+begin
+  Result := TJSONArray.Create;
+  Indexes := TMVCActiveRecord.Select<TMetadataIndex>('SELECT * FROM RDB$INDICES WHERE RDB$RELATION_NAME = ?', [TableName]);
+  try
+    for Index in Indexes do
+      Result.AddElement(Index.ToJSON);
+  finally
+    Indexes.Free;
+  end;
+end;
+
+class function TMetadataView.RenderMetadata(const TableName: string): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('columns', RenderColumns(TableName));
+  Result.AddPair('constraints', RenderConstraints(TableName));
+  Result.AddPair('indexes', RenderIndexes(TableName));
+end;
+
+end.
+

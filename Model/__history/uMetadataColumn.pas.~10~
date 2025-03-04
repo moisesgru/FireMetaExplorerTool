@@ -1,0 +1,44 @@
+unit uMetadataColumn;
+
+interface
+
+uses
+  System.JSON, MVCFramework.ActiveRecord;
+
+type
+  [MVCEntity]
+  TMetadataColumn = class(TMVCActiveRecord)
+  private
+    FName: string;
+    FType: string;
+    FLength: Integer;
+    FNullable: Boolean;
+  public
+    [MVCColumn('name')]
+    property Name: string read FName write FName;
+
+    [MVCColumn('type')]
+    property FieldType: string read FType write FType;
+
+    [MVCColumn('length')]
+    property Length: Integer read FLength write FLength;
+
+    [MVCColumn('nullable')]
+    property Nullable: Boolean read FNullable write FNullable;
+
+    function ToJSON: TJSONObject;
+  end;
+
+implementation
+
+function TMetadataColumn.ToJSON: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('name', FName);
+  Result.AddPair('type', FType);
+  Result.AddPair('length', TJSONNumber.Create(FLength));
+  Result.AddPair('nullable', TJSONBool.Create(FNullable));
+end;
+
+end.
+
